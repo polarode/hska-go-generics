@@ -46,6 +46,148 @@ rapid is similar to gopter. It also allows shrinkage, better generators and stat
 
 > todo: compare implementations for example tests
 
-### Eigene Implementierung für Quickcheck (falls existieriende Bibliotheken Erwartungen nicht entsprechen)
+**Non-generic functions**
+
+As an example for non-generic functions, a function `count`, that counts the words (separated by a whitespace), is tested here. The property that is beeing tested is, that the reversed string and the original string have the same count of words.
+This property can be tested in Haskell using quickcheck with this property:
+
+```haskell
+prop :: String -> Bool
+prop s = count s == count (reverse s)
+```
+
+The same property can be tested in Go with the following implementations for the different libraries:
+
+testing/quick:
+```go
+func TestReverseSameNumberOfWords(t *testing.T) {
+	f := func(x string) bool {
+		y := testable.Count(x)
+		y2 := testable.Count(stringutil.Reverse(x))
+		return y == y2
+	}
+	config := quick.Config{
+		Values: func(values []reflect.Value, r *rand.Rand) {
+			values[0] = reflect.ValueOf(RandomStringGenerator(r, 16, "abcxyz "))
+		}}
+	if err := quick.Check(f, &config); err != nil {
+		t.Error(err)
+	}
+}
+```
+
+gopter:
+```go
+func TestReverseSameNumberOfWords(t *testing.T) {
+	properties := gopter.NewProperties(nil)
+	properties.Property("reverse string has the same number of words", prop.ForAll(
+		func(x string) bool {
+			y := testable.Count(x)
+			y2 := testable.Count(stringutil.Reverse(x))
+			return y == y2
+		},
+		gen.RegexMatch("[a-zA-Z ]+"),
+	))
+	properties.TestingRun(t)
+}
+```
+
+rapid:
+```go
+func TestReverseSameNumberOfWords(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		x := rapid.StringMatching("[a-zA-Z ]+").Draw(t, "words").(string)
+		y := testable.Count(x)
+		y2 := testable.Count(stringutil.Reverse(x))
+		if y != y2 {
+			t.Fatal("falsified: reverse string has the same number of words")
+		}
+	})
+}
+```
+
+**Generic functions**
+
+For generic functions we test a simple add function, that can add two numbers of type int or float. In this example we test for symmetry of this function.
+
+This property can be tested in Haskell using quickcheck with this property:
+> todo: Haskell aquivalent
+
+The same property can be tested in Go with the following implementations for the different libraries:
+
+testing/quick:
+```go
+func TestAddInt(t *testing.T) {
+	f := func(a, b int64) bool {
+		y := testable.Add(a, b)
+		y2 := testable.Add(b, a)
+		return y == y2
+	}
+	if err := quick.Check(f, nil); err != nil {
+		t.Error(err)
+	}
+
+	f2 := func(a, b float64) bool {
+		y := testable.Add(a, b)
+		y2 := testable.Add(b, a)
+		return y == y2
+	}
+	if err := quick.Check(f2, nil); err != nil {
+		t.Error(err)
+	}
+}
+```
+
+gopter:
+```go
+func TestAddSymmetric(t *testing.T) {
+	properties := gopter.NewProperties(nil)
+	properties.Property("add is symmetric (int64)", prop.ForAll(
+		func(a, b int64) bool {
+			y := testable.Add(a, b)
+			y2 := testable.Add(b, a)
+			return y == y2
+		},
+		gen.Int64(),
+		gen.Int64(),
+	))
+	properties.Property("add is symmetric (float64)", prop.ForAll(
+		func(a, b float64) bool {
+			y := testable.Add(a, b)
+			y2 := testable.Add(b, a)
+			return y == y2
+		},
+		gen.Float64(),
+		gen.Float64(),
+	))
+	properties.TestingRun(t)
+}
+```
+
+rapid:
+```go
+func TestAddSymmetric(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		a := rapid.Int64().Draw(t, "a").(int64)
+		b := rapid.Int64().Draw(t, "b").(int64)
+		y := testable.Add(a, b)
+		y2 := testable.Add(b, a)
+		if y != y2 {
+			t.Fatal("falsified: add is symmetric (int64)")
+		}
+	})
+	rapid.Check(t, func(t *rapid.T) {
+		a := rapid.Float64().Draw(t, "a").(float64)
+		b := rapid.Float64().Draw(t, "b").(float64)
+		y := testable.Add(a, b)
+		y2 := testable.Add(b, a)
+		if y != y2 {
+			t.Fatal("falsified: add is symmetric (float64)")
+		}
+	})
+}
+```
+
+### Own implementation of quickcheck in Go (if existing libraries don't meet expectations)
 
 > todo
