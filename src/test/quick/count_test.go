@@ -11,7 +11,7 @@ import (
 )
 
 func TestReverseSameNumberOfWords(t *testing.T) {
-	f := func(x string) bool {
+	property := func(x string) bool {
 		y := testable.Count(x)
 		y2 := testable.Count(stringutil.Reverse(x))
 		return y == y2
@@ -20,13 +20,13 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 		Values: func(values []reflect.Value, r *rand.Rand) {
 			values[0] = reflect.ValueOf(RandomStringGenerator(r, 16, "abcxyz "))
 		}}
-	if err := quick.Check(f, &config); err != nil {
-		t.Error(err)
+	if err := quick.Check(property, &config); err != nil {
+		t.Error("falsified: reverse string has the same number of words", err)
 	}
 }
 
 func TestNumberOfWordsGoeZero(t *testing.T) {
-	f := func(x string) bool {
+	property := func(x string) bool {
 		y := testable.Count(x)
 		return y >= 0
 	}
@@ -34,13 +34,13 @@ func TestNumberOfWordsGoeZero(t *testing.T) {
 		Values: func(values []reflect.Value, r *rand.Rand) {
 			values[0] = reflect.ValueOf(RandomStringGenerator(r, 16, "abcxyz "))
 		}}
-	if err := quick.Check(f, &config); err != nil {
-		t.Error(err)
+	if err := quick.Check(property, &config); err != nil {
+		t.Error("falsified: count is greater or equal than zero", err)
 	}
 }
 
 func TestConcatenatedStringDoubleNumberOfWords(t *testing.T) {
-	f := func(x string) bool {
+	property := func(x string) bool {
 		y := testable.Count(x)
 		y2 := testable.Count(x + x)
 		return y*2 == y2
@@ -49,7 +49,7 @@ func TestConcatenatedStringDoubleNumberOfWords(t *testing.T) {
 		Values: func(values []reflect.Value, r *rand.Rand) {
 			values[0] = reflect.ValueOf(RandomStringGenerator(r, 16, "abcxyz "))
 		}}
-	if err := quick.Check(f, &config); err != nil {
-		t.Error(err)
+	if err := quick.Check(property, &config); err != nil {
+		t.Error("falsified: concatenated string has double number of words", err)
 	}
 }

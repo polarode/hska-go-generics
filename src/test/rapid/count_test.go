@@ -9,33 +9,36 @@ import (
 )
 
 func TestReverseSameNumberOfWords(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	property := func(t *rapid.T) {
 		x := rapid.StringMatching("[a-zA-Z ]+").Draw(t, "words").(string)
 		y := testable.Count(x)
 		y2 := testable.Count(stringutil.Reverse(x))
 		if y != y2 {
-			t.Fatal("falsified: reverse string has the same number of words")
+			t.Error("falsified: reverse string has the same number of words")
 		}
-	})
+	}
+	rapid.Check(t, property)
 }
 
 func TestNumberOfWordsGoeZero(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	property := func(t *rapid.T) {
 		x := rapid.StringMatching("[a-zA-Z ]+").Draw(t, "words").(string)
 		y := testable.Count(x)
 		if !(y >= 0) {
-			t.Fatal("falsified: count is greater or equal than zero")
+			t.Error("falsified: count is greater or equal than zero")
 		}
-	})
+	}
+	rapid.Check(t, property)
 }
 
 func TestConcatenatedStringDoubleNumberOfWords(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	property := func(t *rapid.T) {
 		x := rapid.StringMatching("[a-zA-Z ]+").Draw(t, "words").(string)
 		y := testable.Count(x)
 		y2 := testable.Count(x + x)
 		if y*2 != y2 {
-			t.Fatal("falsified: concatenated string has double number of words")
+			t.Error("falsified: concatenated string has double number of words")
 		}
-	})
+	}
+	rapid.Check(t, property)
 }

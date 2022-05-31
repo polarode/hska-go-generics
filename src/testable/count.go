@@ -31,5 +31,4 @@ func Count(s string) int {
 	default:
 		return 1 + Count(skipWord(s))
 	}
-
 }
