@@ -11,7 +11,7 @@
 	- [2.1 Existing work](#21-existing-work)
 		- [2.1.1 Comparison non-generic functions](#211-comparison-non-generic-functions)
 		- [2.1.2 Comparison generic functions](#212-comparison-generic-functions)
-	- [2.2 Own implementation of quickcheck in Go (if existing libraries don't meet expectations)](#22-own-implementation-of-quickcheck-in-go-if-existing-libraries-dont-meet-expectations)
+	- [2.2 tbd](#22-tbd)
 
 ## 1. Essentials
 
@@ -135,11 +135,11 @@ There exist three popular libraries, that allow property based testing, similar 
 - [github.com/leanovate/gopter](https://pkg.go.dev/github.com/leanovate/gopter)
 - [pgregory.net/rapid](https://pkg.go.dev/pgregory.net/rapid)
 
-The library testing/quick is an official package that comes with Go and is relativly easy to use. However, because it is kept rather simple, it is also limited in its functionality. For example it does not support shrinkage.
+The library *testing/quick* is an official package that comes with Go and is relativly easy to use. However, because it is kept rather simple, it is also limited in its functionality. For example it does not support shrinkage.
 
-gopter is described as a more sophisticated version of the testing/quick package. For exmpample it allows shrinkage, it allows better control of the generators and there is support for stateful tests.
+*gopter* is described as a more sophisticated version of the *testing/quick* package. For exmpample it allows shrinkage, it allows better control of the generators and there is support for stateful tests.
 
-rapid is similar to gopter. It also allows shrinkage, better generators and stateful tests. It claims to have a simpler API than gopter and it does not require user code to minimize failing tests.
+*rapid* is similar to *gopter*. It also allows shrinkage, better generators and stateful tests. It claims to have a simpler API than *gopter* and it does not require user code to minimize failing tests.
 
 #### 2.1.1 Comparison non-generic functions
 
@@ -186,14 +186,27 @@ prop :: String -> Bool
 prop s = count s == count (reverse s)
 ```
 
+The following function is used in the upcoming examples to reverse a string in Go:
+
+```go
+// Reverse returns its argument string reversed rune-wise left to right.
+func Reverse(s string) string {
+	r := []rune(s)
+	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
+		r[i], r[j] = r[j], r[i]
+	}
+	return string(r)
+}
+```
+
 The same property can be tested in Go with the following implementations for the different libraries:
 
 **testing/quick:**
 ```go
 func TestReverseSameNumberOfWords(t *testing.T) {
 	property := func(x string) bool {
-		y := testable.Count(x)
-		y2 := testable.Count(stringutil.Reverse(x))
+		y := Count(x)
+		y2 := Count(Reverse(x))
 		return y == y2
 	}
 	config := quick.Config{
@@ -206,7 +219,7 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 }
 ```
 
-The property that is supposed to be tested is provided as a function. The parameters of this function are used as input values for the functions that is being tested. Those values can be generated outside of the property function. For that testing/quick needs an additional configuration, that contains the generators for the input values of the property function. Since testing/quick does not come with a generator for strings, this has to be implemented manually:
+The property that is supposed to be tested is provided as a function. The parameters of this function are used as input values for the functions that is being tested. Those values can be generated outside of the property function. For that *testing/quick* needs an additional configuration, that contains the generators for the input values of the property function. Since *testing/quick* does not come with a generator for strings, this has to be implemented manually:
 
 ```go
 func RandomStringGenerator(r *rand.Rand, size int, alphabet string) string {
@@ -218,15 +231,15 @@ func RandomStringGenerator(r *rand.Rand, size int, alphabet string) string {
 	return buffer.String()
 }
 ```
-The property function is returning a boolean value, that contains the result for the tested parameters. If a set of parameters evaluates to false, testing/quick handles the error and prints according error messages. This function is evaluated multiple times random inputs according to the given configuration on the call `quick.Check(property, &config)`. This function can return an error, if the check failed for a set of parameters. This error is then forwarded to the testing object `t` together with a describtion of the property.
+The property function is returning a boolean value, that contains the result for the tested parameters. If a set of parameters evaluates to false, *testing/quick* handles the error and prints according error messages. This function is evaluated multiple times random inputs according to the given configuration on the call `quick.Check(property, &config)`. This function can return an error, if the check failed for a set of parameters. This error is then forwarded to the testing object `t` together with a describtion of the property.
 
 **gopter:**
 ```go
 func TestReverseSameNumberOfWords(t *testing.T) {
 	properties := gopter.NewProperties(nil)
 	property := func(x string) bool {
-		y := testable.Count(x)
-		y2 := testable.Count(stringutil.Reverse(x))
+		y := Count(x)
+		y2 := Count(Reverse(x))
 		return y == y2
 	}
 	properties.Property("reverse string has the same number of words",
@@ -235,8 +248,8 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 }
 ```
 
-For gopter the properties that should be tested are again provided as functions. The parameters of this function again serve as input of the function being tested and are generage outside using generators. In contrary to testing/quick, multiple properties can be provided at once and are tested in a testing run. For each property, generators have to be provided for each input of the function. gopter comes with some basic generators, that can be used here. In this example a generator is used, that can generate strings based on a regex.
-The properties function returns a boolean value, that contains the result for the tested parameters. If a set of parameters evaluates to false, gopter handles the error and prints according error messages based on the provided name (first parameter of `properties.Property`). 
+For *gopter* the properties that should be tested are again provided as functions. The parameters of this function again serve as input of the function being tested and are generage outside using generators. In contrary to *testing/quick*, multiple properties can be provided at once and are tested in a testing run. For each property, generators have to be provided for each input of the function. gopter comes with some basic generators, that can be used here. In this example a generator is used, that can generate strings based on a regex.
+The properties function returns a boolean value, that contains the result for the tested parameters. If a set of parameters evaluates to false, *gopter* handles the error and prints according error messages based on the provided name (first parameter of `properties.Property`). 
 On the call `properties.TestingRun(t)` all the properties provided withing `properties` are evaluated multiple times with random inputs.
 
 **rapid:**
@@ -244,8 +257,8 @@ On the call `properties.TestingRun(t)` all the properties provided withing `prop
 func TestReverseSameNumberOfWords(t *testing.T) {
 	property := func(t *rapid.T) {
 		x := rapid.StringMatching("[a-zA-Z ]+").Draw(t, "words").(string)
-		y := testable.Count(x)
-		y2 := testable.Count(stringutil.Reverse(x))
+		y := Count(x)
+		y2 := Count(Reverse(x))
 		if y != y2 {
 			t.Error("falsified: reverse string has the same number of words")
 		}
@@ -254,95 +267,113 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 }
 ```
 
-The property to be tested is again provided as a function. However, the parameters are not used for the generation of input values outside of this function. The input values are generated inside it, but rapid comes with its own generators, like gopter. For this example again a generator is used, that can generate a string based on a regex.
+The property to be tested is again provided as a function. However, the parameters are not used for the generation of input values outside of this function. The input values are generated inside it, but *rapid* comes with its own generators, like *gopter*. For this example again a generator is used, that can generate a string based on a regex.
 If the check does not succeed for a set of generated parameters, an error has to be thrown within the property function. Unlike the other two libraries, the result can not just be returned as a boolean value.
 The property function is evaluated multiple times on the call `rapid.Check(t, property)`.
 
 #### 2.1.2 Comparison generic functions
 
-For generic functions we test a simple add function, that can add two numbers of type int or float. In this example we test for symmetry of this function.
+For generic functions we test a simple add function, that can add two numbers of type int or float. This function is defined as follows:
 
-This property can be tested in Haskell using quickcheck with this property:
+```go
+func Add[t Number](a, b t) t {
+	return a + b
+}
+```
+
+The definition uses a interface `Number` that is used as type constraint for the generic type t. It is defined as the union of the types `int64` and `float64`:
+
+```go
+type Number interface {
+	int64 | float64
+}
+```
+
+In this example we test for symmetry of this function.
+In Haskell this property can be tested using quickcheck with this property:
+
 ```haskell
-prop :: Number -> Number -> Bool
-prop a b = a + b == b + a -- todo: verify if this works in Haskell
+prop :: (Eq a, Num a) => a -> a -> Bool
+prop a b = a + b == b + a
 ```
 
 The same property can be tested in Go with the following implementations for the different libraries:
 
 **testing/quick:**
 ```go
-func TestAddInt(t *testing.T) {
-	f := func(a, b int64) bool {
-		y := testable.Add(a, b)
-		y2 := testable.Add(b, a)
+func TestAddSymmetric(t *testing.T) {
+	propertyInt := func(a, b int64) bool {
+		y := Add(a, b)
+		y2 := Add(b, a)
 		return y == y2
 	}
-	if err := quick.Check(f, nil); err != nil {
-		t.Error(err)
-	}
-
-	f2 := func(a, b float64) bool {
-		y := testable.Add(a, b)
-		y2 := testable.Add(b, a)
+	propertyFloat := func(a, b float64) bool {
+		y := Add(a, b)
+		y2 := Add(b, a)
 		return y == y2
 	}
-	if err := quick.Check(f2, nil); err != nil {
-		t.Error(err)
+	if err := quick.Check(propertyInt, nil); err != nil {
+		t.Error("falsified: add is symmetric (int64)", err)
+	}
+	if err := quick.Check(propertyFloat, nil); err != nil {
+		t.Error("falsified: add is symmetric (float64)", err)
 	}
 }
 ```
+
+As can be seen from this example, the property can not be written in a generic way. This means it has to be written for all possible type of type constraint and the Check call needs to be executed for all of them.
+In contrary to the string type from the non-generic example, no generator has to be provided for primitive types like the ones used here, therefore no configuration needs to be specified. The correct generators are used implicitly.
 
 **gopter:**
 ```go
 func TestAddSymmetric(t *testing.T) {
 	properties := gopter.NewProperties(nil)
-	properties.Property("add is symmetric (int64)", prop.ForAll(
-		func(a, b int64) bool {
-			y := testable.Add(a, b)
-			y2 := testable.Add(b, a)
-			return y == y2
-		},
-		gen.Int64(),
-		gen.Int64(),
-	))
-	properties.Property("add is symmetric (float64)", prop.ForAll(
-		func(a, b float64) bool {
-			y := testable.Add(a, b)
-			y2 := testable.Add(b, a)
-			return y == y2
-		},
-		gen.Float64(),
-		gen.Float64(),
-	))
+	propertyInt := func(a, b int64) bool {
+		y := Add(a, b)
+		y2 := Add(b, a)
+		return y == y2
+	}
+	propertyFloat := func(a, b float64) bool {
+		y := Add(a, b)
+		y2 := Add(b, a)
+		return y == y2
+	}
+	properties.Property("add is symmetric (int64)",
+		prop.ForAll(propertyInt, gen.Int64(), gen.Int64()))
+	properties.Property("add is symmetric (float64)",
+		prop.ForAll(propertyFloat, gen.Float64(), gen.Float64()))
 	properties.TestingRun(t)
 }
 ```
 
+For *gopter*, the same problem can be observed: The property can not be defined in a generic way. But in this example we can now use the properties object and add multiple properties to it. At the end of the test, we execute the check on all of the properties.
+
 **rapid:**
 ```go
 func TestAddSymmetric(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	propertyInt := func(t *rapid.T) {
 		a := rapid.Int64().Draw(t, "a").(int64)
 		b := rapid.Int64().Draw(t, "b").(int64)
-		y := testable.Add(a, b)
-		y2 := testable.Add(b, a)
+		y := Add(a, b)
+		y2 := Add(b, a)
 		if y != y2 {
-			t.Fatal("falsified: add is symmetric (int64)")
+			t.Error("falsified: add is symmetric (int64)")
 		}
-	})
-	rapid.Check(t, func(t *rapid.T) {
+	}
+	propertyFloat := func(t *rapid.T) {
 		a := rapid.Float64().Draw(t, "a").(float64)
 		b := rapid.Float64().Draw(t, "b").(float64)
-		y := testable.Add(a, b)
-		y2 := testable.Add(b, a)
+		y := Add(a, b)
+		y2 := Add(b, a)
 		if y != y2 {
-			t.Fatal("falsified: add is symmetric (float64)")
+			t.Error("falsified: add is symmetric (float64)")
 		}
-	})
+	}
+	rapid.Check(t, propertyInt)
+	rapid.Check(t, propertyFloat)
 }
 ```
 
-### 2.2 Own implementation of quickcheck in Go (if existing libraries don't meet expectations)
+*rapid* again has the same issue as the previous two examples: The property has to be written multiple times, because it can not be written in a generic way.
 
-> todo
+### 2.2 tbd

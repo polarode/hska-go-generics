@@ -7,22 +7,21 @@ import (
 	"github.com/polarode/hska-go-quickcheck/src/testable"
 )
 
-func TestAddInt(t *testing.T) {
-	f := func(a, b int64) bool {
+func TestAddSymmetric(t *testing.T) {
+	propertyInt := func(a, b int64) bool {
 		y := testable.Add(a, b)
 		y2 := testable.Add(b, a)
 		return y == y2
 	}
-	if err := quick.Check(f, nil); err != nil {
-		t.Error(err)
-	}
-
-	f2 := func(a, b float64) bool {
+	propertyFloat := func(a, b float64) bool {
 		y := testable.Add(a, b)
 		y2 := testable.Add(b, a)
 		return y == y2
 	}
-	if err := quick.Check(f2, nil); err != nil {
-		t.Error(err)
+	if err := quick.Check(propertyInt, nil); err != nil {
+		t.Error("falsified: add is symmetric (int64)", err)
+	}
+	if err := quick.Check(propertyFloat, nil); err != nil {
+		t.Error("falsified: add is symmetric (float64)", err)
 	}
 }
