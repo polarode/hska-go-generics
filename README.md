@@ -18,7 +18,7 @@
 Normal unit tests check the code, they are written for, based on explicitly provided examples. Only the examples, that are provided in the form of unit tests by a developer, can be tested.
 
 Property based testing, which originated in Haskell's library QuickCheck, uses another approach. Instead of explicit examples, generators are provided, that can generate valid input data. These generators allow us to automate the test inputs.
-To also automate the validataion of the tested inputs, properties are specified, that need to hold for all valid inputs.
+To also automate the validation of the tested inputs, properties are specified, that need to hold for all valid inputs.
 With both the generation of input data and the validation of results automated, a function can be easily tested for a big number of random inputs, without the need for a developer to specify them in unit tests.
 
 This should not be used as the only testing tool in a project, but it can be useful to supplement regular testing methods.
@@ -49,7 +49,7 @@ This will be the function to be tested using QuickCheck.
 
 #### 1.1.1 Generators
 
-But first the generator for the inputs of this function is needed. For QuickCheck this can be done by providing an instance for the class `Arbitrary` for the required type (in this case `String`). For the some common types, these instances are already given, but if they are missing or for new types, they could be provided as follows:
+But first the generator for the inputs of this function is needed. For QuickCheck this can be done by providing an instance for the class `Arbitrary` for the required type (in this case `String`). For some common types, these instances are already given, but if they are missing or for new types, they could be provided as follows:
 
 ```haskell
 instance Arbitrary Char where 
@@ -58,7 +58,7 @@ instance Arbitrary Char where
 instance Arbitrary String where
    arbitrary = listOf arbitrary
 ```
-The funtions `elements` and `listOf` used here are defined by the QuickCheck package. `elements` allows to generate a random single value from a list of possible values, while `listOf` allows to generate a list of random elements. The implementation can be looked up in the [QuickCheck Source](https://hackage.haskell.org/package/QuickCheck-2.14.2/docs/src/Test.QuickCheck.Gen.html):
+The functions `elements` and `listOf` used here are defined by the QuickCheck package. `elements` allows to generate a random single value from a list of possible values, while `listOf` allows to generate a list of random elements. The implementation can be looked up in the [QuickCheck Source](https://hackage.haskell.org/package/QuickCheck-2.14.2/docs/src/Test.QuickCheck.Gen.html):
 ```haskell
 -- | Generates one of the given values. The input list must be non-empty.
 elements :: [a] -> Gen a
@@ -75,7 +75,7 @@ listOf gen = sized $ \n ->
 
 #### 1.1.2 Properties
 
-With the generators provided by `arbitrary` we can define properties. The example funtion from above was `count`, which allows to counts words in a string. One expectation to this function is, that for the reverse of a string `count` should yield the same number of words as for the string itself. This can be expressed with this property:
+With the generators provided by `arbitrary` we can define properties. The example funtion from above was `count`, which allows to count words in a string. One expectation to this function is, that for the reverse of a string `count` should yield the same number of words as for the string itself. This can be expressed with this property:
 
 ```haskell
 -- | Reversing the string yields the same number of words.
@@ -83,16 +83,16 @@ prop :: String -> Bool
 prop s = count s == count (reverse s)
 ```
 
-The defined property can then be tested for example via the terminal with `quickCheck prop`. QuickCheck will check the property 100 times by generating random inputs for its funcitions according to the instances of Arbitrary, to see if the property holds.
+The defined property can then be tested for example via the terminal with `quickCheck prop`. QuickCheck will check the property 100 times by generating random inputs for its functions according to the instances of Arbitrary, to see if the property holds.
 If these tests pass, the result might look like this:
 ```
 *Main> quickCheck prop
 +++ OK, passed 100 tests.
 ```
 
-If one test fails, quickCheck will use *shrinkage* to try and find simpler examples, for wich the test also fails. This can make it easier for a human to debug the failur.
+If one test fails, quickCheck will use *shrinkage* to try and find simpler examples, for wich the test also fails. This can make it easier for a human to debug the failure.
 
-Such a failur can be found with this property:
+Such a failure can be found with this property:
 ```haskell
 -- | Concatenating the string doubles the number of words.
 -- NOTE: This property does not hold in general!
@@ -112,21 +112,21 @@ The result of executing QuickCheck for this property might look like this:
 At the time of this project work, version 1.18 of Go is the most recent. In this version generics are not fully supported. The developers decided to push some functionality to a later version. Here is a short overview, what is included in version 1.18 and what is still to come:
 
 Implemented in version 1.18:
-- function and type declarartions now allow typeparameters (square bracket)
-- interfaces can be used as type contraints: an interface can define a set of types
+- function and type declarations now allow type parameters (square bracket)
+- interfaces can be used as type constraints: an interface can define a set of types
 - predefined identifier "any": alias for the empty interface (matches all types)
 - predefined identifier "comparable": set of all types, that can be compared with  == and !=
 
 Missing in version 1.18:
-- typedeclarations within generic functions
-- only methods, that are explicitly declared in the interface of the type parameter, can be used within the the method
+- type-declarations within generic functions
+- only methods, that are explicitly declared in the interface of the type parameter, can be used within the method
 - accessing struct fields is not possible
 
 For the full changelog, see the [release notes for v1.18](https://go.dev/doc/go1.18).
 
 ## 2. QuickCheck in Go
 
-The concept of QuickCheck (or property based testing) has also been adopted to Go to some extend. This will be analized in the following section.
+The concept of QuickCheck (or property based testing) has also been adopted to Go to some extent. This will be analyzed in the following section.
 
 ### 2.1 Existing work
 
@@ -135,11 +135,13 @@ There exist three popular libraries, that allow property based testing, similar 
 - [github.com/leanovate/gopter](https://pkg.go.dev/github.com/leanovate/gopter)
 - [pgregory.net/rapid](https://pkg.go.dev/pgregory.net/rapid)
 
-The library *testing/quick* is an official package that comes with Go and is relativly easy to use. However, because it is kept rather simple, it is also limited in its functionality. For example it does not support shrinkage.
+The library *testing/quick* is an official package that comes with Go and is relatively easy to use. However, because it is kept rather simple, it is also limited in its functionality. For example, it does not support shrinkage.
 
-*gopter* is described as a more sophisticated version of the *testing/quick* package. For exmpample it allows shrinkage, it allows better control of the generators and there is support for stateful tests.
+*gopter* is described as a more sophisticated version of the *testing/quick* package. For example, it allows shrinkage, it allows better control of the generators and there is support for stateful tests.
 
 *rapid* is similar to *gopter*. It also allows shrinkage, better generators and stateful tests. It claims to have a simpler API than *gopter* and it does not require user code to minimize failing tests.
+
+The three libraries will be tested and compared on a few examples in the next sections.
 
 #### 2.1.1 Comparison non-generic functions
 
@@ -177,7 +179,7 @@ func Count(s string) int {
 }
 ```
 
-The property that is beeing tested is again, that the reversed string and the original string have the same count of words.
+The property that is being tested is again, that the reversed string and the original string have the same count of words.
 As a quick reminder, this can be tested in Haskell using quickcheck with this property:
 
 ```haskell
@@ -219,7 +221,7 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 }
 ```
 
-The property that is supposed to be tested is provided as a function. The parameters of this function are used as input values for the functions that is being tested. Those values can be generated outside of the property function. For that *testing/quick* needs an additional configuration, that contains the generators for the input values of the property function. Since *testing/quick* does not come with a generator for strings, this has to be implemented manually:
+The property that is supposed to be tested is provided as a function. The parameters of this function are used as input values for the functions that is being tested. Those values can be generated outside the property function. For that *testing/quick* needs an additional configuration, that contains the generators for the input values of the property function. Since *testing/quick* does not come with a generator for strings, this has to be implemented manually:
 
 ```go
 func RandomStringGenerator(r *rand.Rand, size int, alphabet string) string {
@@ -231,7 +233,7 @@ func RandomStringGenerator(r *rand.Rand, size int, alphabet string) string {
 	return buffer.String()
 }
 ```
-The property function is returning a boolean value, that contains the result for the tested parameters. If a set of parameters evaluates to false, *testing/quick* handles the error and prints according error messages. This function is evaluated multiple times random inputs according to the given configuration on the call `quick.Check(property, &config)`. This function can return an error, if the check failed for a set of parameters. This error is then forwarded to the testing object `t` together with a describtion of the property.
+The property function is returning a boolean value, that contains the result for the tested parameters. If a set of parameters evaluates to false, *testing/quick* handles the error and prints according error messages. This function is evaluated multiple times for random inputs according to the given configuration on the call `quick.Check(property, &config)`. This function can return an error, if the check failed for a set of parameters. This error is then forwarded to the testing object `t` together with a description of the property.
 
 **gopter:**
 ```go
@@ -248,9 +250,9 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 }
 ```
 
-For *gopter* the properties that should be tested are again provided as functions. The parameters of this function again serve as input of the function being tested and are generage outside using generators. In contrary to *testing/quick*, multiple properties can be provided at once and are tested in a testing run. For each property, generators have to be provided for each input of the function. gopter comes with some basic generators, that can be used here. In this example a generator is used, that can generate strings based on a regex.
+For *gopter* the properties that should be tested are again provided as functions. The parameters of this function again serve as input of the function being tested and are generated outside using generators. In contrary to *testing/quick*, multiple properties can be provided at once and are tested in a testing run. For each property, generators have to be provided for each input of the function. gopter comes with some basic generators, that can be used here. In this example a generator is used, that can generate strings based on a regex.
 The properties function returns a boolean value, that contains the result for the tested parameters. If a set of parameters evaluates to false, *gopter* handles the error and prints according error messages based on the provided name (first parameter of `properties.Property`). 
-On the call `properties.TestingRun(t)` all the properties provided withing `properties` are evaluated multiple times with random inputs.
+On the call `properties.TestingRun(t)` all the properties provided within `properties` are evaluated multiple times with random inputs.
 
 **rapid:**
 ```go
@@ -267,7 +269,7 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 }
 ```
 
-The property to be tested is again provided as a function. However, the parameters are not used for the generation of input values outside of this function. The input values are generated inside it, but *rapid* comes with its own generators, like *gopter*. For this example again a generator is used, that can generate a string based on a regex.
+The property to be tested is again provided as a function. However, the parameters are not used for the generation of input values outside this function. The input values are generated inside it, but *rapid* comes with its own generators, like *gopter*. For this example again a generator is used, that can generate a string based on a regex.
 If the check does not succeed for a set of generated parameters, an error has to be thrown within the property function. Unlike the other two libraries, the result can not just be returned as a boolean value.
 The property function is evaluated multiple times on the call `rapid.Check(t, property)`.
 
@@ -281,7 +283,7 @@ func Add[t Number](a, b t) t {
 }
 ```
 
-The definition uses a interface `Number` that is used as type constraint for the generic type t. It is defined as the union of the types `int64` and `float64`:
+The definition uses an interface `Number` that is used as type constraint for the generic type t. It is defined as the union of the types `int64` and `float64`:
 
 ```go
 type Number interface {
@@ -346,7 +348,7 @@ func TestAddSymmetric(t *testing.T) {
 }
 ```
 
-For *gopter*, the same problem can be observed: The property can not be defined in a generic way. But in this example we can now use the properties object and add multiple properties to it. At the end of the test, we execute the check on all of the properties.
+For *gopter*, the same problem can be observed: The property can not be defined in a generic way. But in this example we can now use the properties object and add multiple properties to it. At the end of the test, we execute the check on all the properties.
 
 **rapid:**
 ```go
