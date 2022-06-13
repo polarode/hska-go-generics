@@ -11,7 +11,8 @@
 	- [2.1 Existing work](#21-existing-work)
 		- [2.1.1 Comparison non-generic functions](#211-comparison-non-generic-functions)
 		- [2.1.2 Comparison generic functions](#212-comparison-generic-functions)
-	- [2.2 tbd](#22-tbd)
+	- [2.2 Summary of the comparison](#22-summary-of-the-comparison)
+	- [2.3 Property based testing in Go compared to QuickCheck in Haskell](#23-property-based-testing-in-go-compared-to-quickcheck-in-haskell)
 
 ## 1. Essentials
 
@@ -233,6 +234,39 @@ func RandomStringGenerator(r *rand.Rand, size int, alphabet string) string {
 	return buffer.String()
 }
 ```
+
+This generator function is provided via the `Config` struct. This struct looks as follows:
+
+```go
+type Config struct {
+	// MaxCount sets the maximum number of iterations.
+	// If zero, MaxCountScale is used.
+	MaxCount int
+	// MaxCountScale is a non-negative scale factor applied to the
+	// default maximum.
+	// A count of zero implies the default, which is usually 100
+	// but can be set by the -quickchecks flag.
+	MaxCountScale float64
+	// Rand specifies a source of random numbers.
+	// If nil, a default pseudo-random source will be used.
+	Rand *rand.Rand
+	// Values specifies a function to generate a slice of
+	// arbitrary reflect.Values that are congruent with the
+	// arguments to the function being tested.
+	// If nil, the top-level Value function is used to generate them.
+	Values func([]reflect.Value, *rand.Rand)
+}
+```
+It can also be used to configure the number of iterations and to set a source for random numbers. But to only set the generators, only Values function needs to be defined. For each parameter of the property function, the `values` array needs to have an entry with a `reflect.Value`:
+
+```go
+config := quick.Config{
+	Values: func(values []reflect.Value, r *rand.Rand) {
+		values[0] = reflect.ValueOf(RandomStringGenerator(r, 16, "abcxyz "))
+	}
+}
+```
+
 The property function is returning a boolean value, that contains the result for the tested parameters. If a set of parameters evaluates to false, *testing/quick* handles the error and prints according error messages. This function is evaluated multiple times for random inputs according to the given configuration on the call `quick.Check(property, &config)`. This function can return an error, if the check failed for a set of parameters. This error is then forwarded to the testing object `t` together with a description of the property.
 
 **gopter:**
@@ -250,7 +284,40 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 }
 ```
 
-For *gopter* the properties that should be tested are again provided as functions. The parameters of this function again serve as input of the function being tested and are generated outside using generators. In contrary to *testing/quick*, multiple properties can be provided at once and are tested in a testing run. For each property, generators have to be provided for each input of the function. gopter comes with some basic generators, that can be used here. In this example a generator is used, that can generate strings based on a regex.
+For *gopter* the properties that should be tested are again provided as functions. The parameters of this function again serve as input of the function being tested and are generated outside using generators. *gopter* comes with some basic generators, that can be used here. In this example a generator is used, that can generate strings based on a regex.
+*gopter* defines its own type `Gen` for generators. This type is basically a function, that takes some `GenParameters` and provides a `GenResult`. 
+
+```go
+type Gen func(*GenParameters) *GenResult
+```
+
+By looking at those types again, we can see some similarities to *testing/quick*:
+
+```go
+type GenParameters struct {
+	MinSize        int
+	MaxSize        int
+	MaxShrinkCount int
+	Rng            *rand.Rand
+}
+```
+
+The GenParameters contain a source of random numbers, just like Config for *testing/quick*. Additionally it can hold values for minimum and maximum size, which can be used for strings or slices and a value for the maximum number of shrinks.
+
+```go
+type GenResult struct {
+	Labels     []string
+	Shrinker   Shrinker
+	ResultType reflect.Type
+	Result     interface{}
+	Sieve      func(interface{}) bool
+}
+```
+
+*GenResult* contains the result itself (with the empty interface as type to match all possible types), and the reflective result type. This is again similar to the reflective value, that is used as result type of the generator functions in *testing/quick*. Additionally *GenResult* contains a sieve function that can check if a value is valid, a shrinker and labels.
+
+In contrary to *testing/quick*, multiple properties can be provided at once and are tested in a testing run. For each property, generators have to be provided for each input parameter of the function. 
+
 The properties function returns a boolean value, that contains the result for the tested parameters. If a set of parameters evaluates to false, *gopter* handles the error and prints according error messages based on the provided name (first parameter of `properties.Property`). 
 On the call `properties.TestingRun(t)` all the properties provided within `properties` are evaluated multiple times with random inputs.
 
@@ -270,6 +337,18 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 ```
 
 The property to be tested is again provided as a function. However, the parameters are not used for the generation of input values outside this function. The input values are generated inside it, but *rapid* comes with its own generators, like *gopter*. For this example again a generator is used, that can generate a string based on a regex.
+
+The `Generator` for *rapid* is defined as a struct as follows:
+```go
+type Generator struct {
+	impl    generatorImpl
+	typ     reflect.Type
+	strOnce sync.Once
+	str     string
+}
+```
+The internal details are a bit more complicated here, but from this it is already visible, that the reflect package is used. And this is the most important fact needed for the comparison with the QuickCheck implementation in Haskell later.
+
 If the check does not succeed for a set of generated parameters, an error has to be thrown within the property function. Unlike the other two libraries, the result can not just be returned as a boolean value.
 The property function is evaluated multiple times on the call `rapid.Check(t, property)`.
 
@@ -378,4 +457,10 @@ func TestAddSymmetric(t *testing.T) {
 
 *rapid* again has the same issue as the previous two examples: The property has to be written multiple times, because it can not be written in a generic way.
 
-### 2.2 tbd
+### 2.2 Summary of the comparison
+
+todo
+
+### 2.3 Property based testing in Go compared to QuickCheck in Haskell
+
+todo
