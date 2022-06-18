@@ -18,7 +18,7 @@ func TestReverseSameNumberOfWords(t *testing.T) {
 	}
 	config := quick.Config{
 		Values: func(values []reflect.Value, r *rand.Rand) {
-			values[0] = reflect.ValueOf(RandomStringGenerator(r, 16, "abcxyz "))
+			values[0] = RandomStringGenerator(r, 16, "abcxyz ")
 		}}
 	if err := quick.Check(property, &config); err != nil {
 		t.Error("falsified: reverse string has the same number of words", err)
@@ -32,7 +32,7 @@ func TestNumberOfWordsGoeZero(t *testing.T) {
 	}
 	config := quick.Config{
 		Values: func(values []reflect.Value, r *rand.Rand) {
-			values[0] = reflect.ValueOf(RandomStringGenerator(r, 16, "abcxyz "))
+			values[0] = RandomStringGenerator(r, 16, "abcxyz ")
 		}}
 	if err := quick.Check(property, &config); err != nil {
 		t.Error("falsified: count is greater or equal than zero", err)
@@ -47,7 +47,7 @@ func TestConcatenatedStringDoubleNumberOfWords(t *testing.T) {
 	}
 	config := quick.Config{
 		Values: func(values []reflect.Value, r *rand.Rand) {
-			values[0] = reflect.ValueOf(RandomStringGenerator(r, 16, "abcxyz "))
+			values[0] = RandomStringGenerator(r, 16, "abcxyz ")
 		}}
 	if err := quick.Check(property, &config); err != nil {
 		t.Error("falsified: concatenated string has double number of words", err)
