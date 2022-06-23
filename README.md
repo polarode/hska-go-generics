@@ -12,6 +12,9 @@
 		- [2.1.1 Comparison non-generic functions](#211-comparison-non-generic-functions)
 		- [2.1.2 Comparison generic functions](#212-comparison-generic-functions)
 	- [2.2 Summary](#22-summary)
+		- [2.2.1 Generators](#221-generators)
+		- [2.2.2 Properties](#222-properties)
+		- [2.2.3 Conclusion](#223-conclusion)
 
 ## 1. Essentials
 
@@ -89,6 +92,21 @@ If these tests pass, the result might look like this:
 *Main> quickCheck prop
 +++ OK, passed 100 tests.
 ```
+
+Looking at the type definition of `quickCheck` tells, that the property, that we provide, has to be `Testable`.
+
+```haskell
+quickCheck :: Testable prop => prop -> IO ()
+```
+
+This is a class defined by QuickCheck and it has multiple instances. The one, that matches the property defined above is the following:
+
+```haskell
+instance (Arbitrary a, Show a, Testable prop) => Testable (a -> prop) where 
+    ...
+```
+
+This recursive definition shows, that there has to be an instance for `Arbitrary` for the type of the parameter(s) of the property. A property with a parameter of some type without an instance of `Arbitrary` would not be allowed and noticed by the compiler. This means that property based testing in Haskell with QuickCheck is **type safe**.
 
 If one test fails, quickCheck will use *shrinkage* to try and find simpler examples, for which the test also fails. This can make it easier for a human to debug the failure.
 
@@ -256,7 +274,7 @@ type Config struct {
 	Values func([]reflect.Value, *rand.Rand)
 }
 ```
-It can also be used to configure the number of iterations and to set a source for random numbers. But to only set the generators, only Values function needs to be defined. For each parameter of the property function, the `values` array needs to have an entry with a `reflect.Value`. Reflective values are used, because the types of these generators are only checked during runtime. This means, compared to the Arbitrary instances in Haskell, there is no type safety for the generators in Go.
+It can also be used to configure the number of iterations and to set a source for random numbers. But to only set the generators, only Values function needs to be defined. For each parameter of the property function, the `values` array needs to have an entry with a `reflect.Value`.
 
 ```go
 config := quick.Config{
@@ -265,6 +283,7 @@ config := quick.Config{
 	}
 }
 ```
+Reflective values have to be used, because inheritance is not supported in Go. With reflictive values, the types of these generators are only checked during runtime. But this also means, that compared to the Arbitrary instances in Haskell, the generators in Go are **not type safe**.
 
 *testing/quick* also defines an interface for a `Generator` that can be used:
 ```go 
@@ -467,12 +486,49 @@ func TestAddSymmetric(t *testing.T) {
 
 ### 2.2 Summary
 
-**Generators**
-
+#### 2.2.1 Generators
 The three implementations are using reflective values for their generators. This means they are not type safe, because the types are only checked during runtime. QuickCheck in Haskell on the other hand is type safe, because it is implemented using overloading. All types, for which an instance for the Arbitrary class is provided, can be generated. This means, type safety can be checked already during compile time.
+
+To show that, consider this alternative generator, that generates random integer values instead of strings:
+
+```go
+func RandomIntGenerator(r *rand.Rand, size int) reflect.Value {
+	return reflect.ValueOf(rand.Intn(size))
+}
+```
+
+Since its return value has the same type `reflect.Value`, it can replace the string generator from the example of *testing/quick*:
+
+```go
+func TestReverseSameNumberOfWords(t *testing.T) {
+	property := func(x string) bool {
+		y := testable.Count(x)
+		y2 := testable.Count(stringutil.Reverse(x))
+		return y == y2
+	}
+	config := quick.Config{
+		Values: func(values []reflect.Value, r *rand.Rand) {
+			values[0] = RandomIntGenerator(r, 16)
+		}}
+	if err := quick.Check(property, &config); err != nil {
+		t.Error("falsified: reverse string has the same number of words", err)
+	}
+}
+```
+
+The Go compiler doesn't recognize, that this doesn't work and so we only get an error message during runtime when executing the test:
+
+```text
+=== RUN   TestReverseSameNumberOfWords
+--- FAIL: TestReverseSameNumberOfWords (0.00s)
+panic: reflect: Call using int as type string [recovered]
+        panic: reflect: Call using int as type string
+```
+
+
 There are also differences between the three libraries regarding generators. *testing/quick* comes only with basic generators, like for primitive types. *gopter* and *rapid* both offer more options out of the box, like the string generator based on a regex used in the earlier examples. All the available, predefined generators can be found in the Go documentation ([*gopter*](https://pkg.go.dev/github.com/leanovate/gopter/gen?utm_source=godoc), [*rapid*](https://pkg.go.dev/pgregory.net/rapid#pkg-index)). In all cases own, more specific generators can be defined.
 
-**Properties**
+#### 2.2.2 Properties
 
 All three libraries are using functions to define a property, but there are still differences. For *testing/quick* and *gopter* a property function has to return a boolean value, that says, if this property was checked successfully or not. This is the same way as it is implemented for QuickCheck in Haskell. For *rapid*, property functions are provided without a return value. If the property does not apply, an error has to be thrown.
 Property functions in Go show a current limitation when used in combination with generics. It is not possible to provide a generic function to a property based testing library, so that the library can check it for the different types on its own. This is possible with QuickCheck in Haskell. The "next best thing" possible in Go is to define the property as a generic function and then check it multiple times with the specific type parameters. For example with *gopter*:
@@ -494,3 +550,68 @@ In Haskell however, this is as simple as the following code example:
 prop :: (Eq a, Num a) => a -> a -> Bool
 prop a b = a + b == b + a
 ```
+
+#### 2.2.3 Conclusion
+
+The three packages that are available in Go implement property based testing as good as possible, but there are some limitations coming with the language. For example it is not possible to provide generators for properties in a way that is type safe, because it requires the use of reflective values. Furthermore it is not possible to cover a generic function with a single property/check.
+Two of the packages (gopter and rapid) in Go also come with support for shinkage like it is possible with QuickCheck in Haskell. However, those two are not official packages and might not be updated by their maintainers in the future.
+But there is also a small thing, that gopter and rapid provide, that is not available in Haskell: They provide some more complex generators for common types out of the box, like the string generator, that matches a regex.
+
+Finally, here is a table quickly showing the most obvious facts and differences between QuickCheck in Haskell and the three packages in Go:
+
+<table>
+	<tr>
+		<th rowspan=2></th>
+		<th>Haskell</th>
+		<th colspan=3>Go</th>
+	</tr>
+	<tr>
+		<th>QuickCheck</th>
+		<th>testing/quick</th>
+		<th>gopter</th>
+		<th>rapid</th>
+	</tr>
+	<tr>
+		<td>generators type safe</td>
+		<td>✔</td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td>comes with complex generators</td>
+		<td></td>
+		<td></td>
+		<td>✔</td>
+		<td>✔</td>
+	</tr>
+	<tr>
+		<td>shinkage</td>
+		<td>✔</td>
+		<td></td>
+		<td>✔</td>
+		<td>✔</td>
+	</tr>
+	<tr>
+		<td>simplicity to define tests</td>
+		<td>✔</td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td>support for generics</td>
+		<td>✔</td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td>last version release*</td>
+		<td>14.11.2020</td>
+		<td>01.06.2022</td>
+		<td>09.11.2020</td>
+		<td>05.07.2021</td>
+	</tr>
+</table>
+(*) at the time of this work
